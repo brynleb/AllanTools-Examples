@@ -24,23 +24,14 @@ nrates = len(rates)
 ndata  = [10001, 10001, 10001]	## Number of samples acquired at each sample rate
 times  = [np.linspace(0., (ndata[i]-1)/rates[i], num=ndata[i]) for i in range(nrates)]
 
-# ndata1 = 50001	## Number of samples at sample rate 1
-# ndata2 = int((ndata1-1)*rate2/rate1) + 1	## Number of samples at sample rate 2
-# ndata3 = int((ndata1-1)*rate3/rate1) + 1	## Number of samples at sample rate 3
-
-# times1 = np.linspace(0., (ndata1-1)/rate1, num=ndata1)
-# times2 = np.linspace(0., (ndata2-1)/rate2, num=ndata2)
-# times3 = np.linspace(0., (ndata3-1)/rate3, num=ndata3)
-
-S = lambda t, f, A, B: A*np.sin(2*np.pi*f*t) + B
-
 rng    = np.random.default_rng(seed=1234)	## For repeatability
 sigma  = 1.E-3 	## Standard deviation of Gaussian noise [V]
-noises = [rng.normal(0., sigma, ndata[i]) for i in range(nrates)]
-# noise = ADevTools.GenerateNoise(ndata1, rate1, NoiseType='White', NoisePar=1.E-3)
+# noises = [rng.normal(0., sigma, ndata[i]) for i in range(nrates)]
+noises = [ADevTools.GenerateNoise(ndata[i], rates[i], NoiseColor='Brown', NoisePar=2*sigma**2/rates[i]) for i in range(nrates)]
 
-kwargs = {'f': 50.E0, 'A': 2.E-4, 'B': 1.E-3}
-data   = [S(times[i], **kwargs) + noises[i] for i in range(nrates)]
+signal = lambda t, f, A, B: A*np.sin(2*np.pi*f*t) + B
+kwargs = {'f': 50.E0, 'A': 0.E-4, 'B': 0.E-3}
+data   = [signal(times[i], **kwargs) + noises[i] for i in range(nrates)]
 
 ## Compute PSDs
 psd_type = 'welch'		## PSD type 'welch' or 'standard'
@@ -60,14 +51,15 @@ for i in range(nrates):
 ## Compute Allan deviations
 taus       = ['log10', 'log10', 'log10']	## Average times: 'all', 'octave', 'decade', 'log10'
 adev_types = ['Total', 'Total', 'Total']	## Allan deviation type: 'ADev', 'Overlapping', 'Modified', 'Total', 'Modified Total'
-comp_errs  = True
+comp_errs  = True							## Flag for computing uncertainties based on chi2 distribution
+adev_noise = 'White FM'						## Assumed noise type for uncertainty calculation
 
 adev_taus = [np.empty(1) for _ in range(nrates)]
 adev_devs = [np.empty(1) for _ in range(nrates)]
 adev_errs = [np.empty(1) for _ in range(nrates)]
 
 for i in range(nrates):
-	(adev_taus[i], adev_devs[i], adev_errs[i]) = ADevTools.ComputeADev(data[i], taus=taus[i], rate=rates[i], ADevType=adev_types[i], ComputeErrors=comp_errs)
+	(adev_taus[i], adev_devs[i], adev_errs[i]) = ADevTools.ComputeADev(data[i], taus=taus[i], rate=rates[i], ADevType=adev_types[i], ComputeErrors=comp_errs, NoiseType=adev_noise)
 
 ## Print signal statistics
 # print('Time series:')
